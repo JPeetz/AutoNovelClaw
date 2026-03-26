@@ -88,7 +88,7 @@ artifacts/nc-20260318-143022-my-novel/
 
 ## 🧬 The Writing DNA
 
-AutoNovelClaw's writing engine is built on the **Echoes of the Abyss methodology** — a writing system developed across 100+ hours of real human-AI collaborative novel writing on two book series ("The Silent Empire," an epic fantasy tetralogy, and "Phantom Drift," a techno-thriller series). That collaborative process produced manuscripts independently rated 9.3/10 by AI reviewers. The specific techniques that got them to that level are hardcoded into this pipeline's Writer Agent.
+AutoNovelClaw's writing engine is built on an existing AI writen and published Novel  — a writing system developed across 100+ hours of real human-AI collaborative novel writing on two book series ("The Silent Empire," an epic fantasy tetralogy, and "Phantom Drift," a techno-thriller series). That collaborative process produced manuscripts independently rated 9.3/10 by AI reviewers. The specific techniques that got them to that level are hardcoded into this pipeline's Writer Agent.
 
 ### The Five-Sense Immersion Model
 
