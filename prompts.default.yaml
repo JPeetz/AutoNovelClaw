@@ -1,0 +1,42 @@
+# =============================================================================
+# AutoNovelClaw — Default Prompt Overrides
+# =============================================================================
+#
+# Copy this file, edit any prompt you want to customise, and point your config:
+#
+#   prompts:
+#     custom_file: "my_prompts.yaml"
+#
+# Template variables use {var_name} syntax. Block references like
+# {sensory_model} or {anti_ai_voice} are expanded from the blocks section.
+#
+# You only need to include the stages/blocks you want to override.
+# Everything else uses the built-in defaults from prompts.py.
+# =============================================================================
+
+# blocks:
+#   # Override the sensory model targets:
+#   sensory_model: |
+#     ## CUSTOM SENSORY MODEL
+#     Visual: 30%, Kinesthetic: 30%, Olfactory: 20%, Auditory: 15%, Gustatory: 5%
+#
+#   # Add a custom block:
+#   my_custom_block: |
+#     ## MY CUSTOM WRITING RULE
+#     Always include weather in every scene opening.
+
+# stages:
+#   # Override the chapter draft user prompt:
+#   chapter_draft:
+#     user: |
+#       Write Chapter {chapter_num}: "{chapter_title}"
+#       ... your custom prompt here ...
+#
+#   # Override just the max_tokens for a stage:
+#   storyline_generation:
+#     max_tokens: 16384
+
+# genre_overlays:
+#   # Add a new genre:
+#   steampunk:
+#     "## GENRE: STEAMPUNK\n- Victorian aesthetics with anachronistic technology\n..."

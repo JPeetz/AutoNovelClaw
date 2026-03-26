@@ -1,0 +1,210 @@
+# Genre conventions, reader expectations, and writing craft reference data.
+# Loaded by the ideation and writing stages for genre-aware generation.
+
+genres:
+  epic_fantasy:
+    display_name: "Epic Fantasy"
+    word_count_range: [80000, 150000]
+    chapter_count_range: [20, 40]
+    pov_preference: "third-person-limited, multiple POV"
+    pacing: "slow build with epic climaxes"
+    reader_expectations:
+      - "Rich world-building with deep history"
+      - "Complex magic system with rules and costs"
+      - "Multiple character arcs that interweave"
+      - "Moral complexity — no pure good vs evil"
+      - "Satisfying but costly victory"
+    tropes_to_honour:
+      - "The quest or journey"
+      - "Prophecy (but subverted)"
+      - "Reluctant hero"
+      - "Found family"
+    tropes_to_subvert:
+      - "Chosen one with no agency"
+      - "Dark lord with no motivation"
+      - "Conveniently timed magic"
+      - "Women as prizes or motivations only"
+    comp_titles:
+      - "The Name of the Wind (Rothfuss)"
+      - "The Way of Kings (Sanderson)"
+      - "A Game of Thrones (Martin)"
+      - "The Fifth Season (Jemisin)"
+
+  techno_thriller:
+    display_name: "Techno-Thriller"
+    word_count_range: [70000, 100000]
+    chapter_count_range: [25, 40]
+    pov_preference: "third-person-limited, single or dual POV"
+    pacing: "relentless, short chapters, multiple timelines"
+    reader_expectations:
+      - "Authentic technical detail"
+      - "Ticking clock tension"
+      - "Expert protagonist with specific skills"
+      - "Real-world grounding with speculative edge"
+      - "Conspiracy or systemic threat"
+    comp_titles:
+      - "The Martian (Weir)"
+      - "Jurassic Park (Crichton)"
+      - "Daemon (Suarez)"
+
+  sci_fi:
+    display_name: "Science Fiction"
+    word_count_range: [70000, 120000]
+    chapter_count_range: [20, 35]
+    pov_preference: "varies — first or third"
+    pacing: "idea-driven, can be contemplative or action-heavy"
+    reader_expectations:
+      - "Internally consistent speculative science"
+      - "Exploration of technology's impact on society"
+      - "Sense of wonder and scale"
+      - "Ideas that make you think differently"
+    comp_titles:
+      - "Project Hail Mary (Weir)"
+      - "The Left Hand of Darkness (Le Guin)"
+      - "Neuromancer (Gibson)"
+
+  dark_fantasy:
+    display_name: "Dark Fantasy"
+    word_count_range: [80000, 130000]
+    chapter_count_range: [20, 35]
+    pov_preference: "third-person-limited, tight POV"
+    pacing: "slow dread build with sharp violence"
+    reader_expectations:
+      - "Atmosphere of wrongness and dread"
+      - "Magic with terrible costs"
+      - "Morally grey characters throughout"
+      - "Beauty and horror coexisting"
+      - "Consequences that compound"
+    comp_titles:
+      - "The Blade Itself (Abercrombie)"
+      - "The Poppy War (Kuang)"
+      - "Prince of Thorns (Lawrence)"
+
+  horror:
+    display_name: "Horror"
+    word_count_range: [60000, 90000]
+    chapter_count_range: [20, 35]
+    pov_preference: "first or close third — maximum intimacy"
+    pacing: "suffocating build, sharp releases"
+    reader_expectations:
+      - "Escalating dread, not just jump scares"
+      - "The ordinary becoming wrong"
+      - "Isolation (physical or psychological)"
+      - "Reader's imagination worse than what's shown"
+    comp_titles:
+      - "The Haunting of Hill House (Jackson)"
+      - "Mexican Gothic (Moreno-Garcia)"
+      - "The Troop (Cutter)"
+
+  romance:
+    display_name: "Romance"
+    word_count_range: [50000, 90000]
+    chapter_count_range: [20, 35]
+    pov_preference: "dual POV (both love interests)"
+    pacing: "push-pull tension with escalating intimacy"
+    reader_expectations:
+      - "Happily Ever After (HEA) or Happy For Now (HFN)"
+      - "Both characters worthy of each other"
+      - "Emotional vulnerability as the real climax"
+      - "External conflict that tests the relationship"
+    comp_titles:
+      - "Beach Read (Henry)"
+      - "The Hating Game (Thorne)"
+      - "Red, White & Royal Blue (McQuiston)"
+
+  literary_fiction:
+    display_name: "Literary Fiction"
+    word_count_range: [60000, 100000]
+    chapter_count_range: [15, 30]
+    pov_preference: "varies — often experimental"
+    pacing: "contemplative, character-driven"
+    reader_expectations:
+      - "Beautiful, precise prose"
+      - "Deep character interiority"
+      - "Thematic resonance over plot mechanics"
+      - "Ambiguity and open endings acceptable"
+    comp_titles:
+      - "Normal People (Rooney)"
+      - "A Little Life (Yanagihara)"
+      - "Hamnet (O'Farrell)"
+
+  mystery:
+    display_name: "Mystery"
+    word_count_range: [60000, 90000]
+    chapter_count_range: [25, 40]
+    pov_preference: "first or close third — detective POV"
+    pacing: "accelerating toward revelation"
+    reader_expectations:
+      - "Fair play — clues available to the reader"
+      - "Red herrings that are satisfying, not cheap"
+      - "Surprising but inevitable solution"
+      - "Every character is a suspect"
+    comp_titles:
+      - "The Thursday Murder Club (Osman)"
+      - "In the Woods (French)"
+      - "The 7½ Deaths of Evelyn Hardcastle (Turton)"
+
+# AI cliché blacklist — phrases the Writer Agent must never use
+ai_cliche_blacklist:
+  - "it's worth noting"
+  - "moreover"
+  - "furthermore"
+  - "in conclusion"
+  - "a tapestry of"
+  - "a symphony of"
+  - "a dance of"
+  - "palpable tension"
+  - "painting the sky"
+  - "sent shivers down"
+  - "every fiber of being"
+  - "left breathless"
+  - "needless to say"
+  - "it is important to note"
+  - "unbeknownst to"
+  - "a kaleidoscope of"
+  - "delve into"
+  - "testament to"
+  - "the silence was deafening"
+  - "eyes like pools"
+  - "time stood still"
+  - "with bated breath"
+  - "a sense of foreboding"
+
+# KDP paperback specifications
+kdp_specs:
+  trim_sizes:
+    "5x8":
+      width_in: 5.0
+      height_in: 8.0
+      min_pages: 24
+      max_pages: 828
+    "5.25x8":
+      width_in: 5.25
+      height_in: 8.0
+      min_pages: 24
+      max_pages: 828
+    "5.5x8.5":
+      width_in: 5.5
+      height_in: 8.5
+      min_pages: 24
+      max_pages: 828
+    "6x9":
+      width_in: 6.0
+      height_in: 9.0
+      min_pages: 24
+      max_pages: 828
+  margins:
+    # Minimum inside (gutter) margins by page count
+    pages_24_150: 0.375
+    pages_151_400: 0.75
+    pages_401_600: 0.875
+    pages_601_plus: 1.0
+    outside_min: 0.25
+    top_min: 0.25
+    bottom_min: 0.25
+  cover:
+    min_dpi: 300
+    color_space: "RGB"
+    kindle_dimensions: "2560x1600"
+    spine_width_per_page_white: 0.002252
+    spine_width_per_page_cream: 0.0025

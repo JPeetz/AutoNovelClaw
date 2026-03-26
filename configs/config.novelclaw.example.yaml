@@ -1,0 +1,173 @@
+# ============================================================================
+# AutoNovelClaw — Configuration
+# ============================================================================
+# Copy this file:  cp config.novelclaw.example.yaml config.novelclaw.yaml
+# Edit your API key and preferences, then run:
+#   novelclaw run --topic "Your story idea here"
+# ============================================================================
+
+# --- Project ---
+project_name: "my-novel"
+mode: "semi-auto"        # full-auto | semi-auto | supervised
+                          # full-auto:   only stops at gates
+                          # semi-auto:   pauses at gates + chapter presentations
+                          # supervised:  pauses after every stage
+
+# --- Ideation ---
+ideation:
+  storyline_count: 10     # How many storylines to generate (1-10)
+  clarifying_questions: true
+  diversity_enforcement: true
+
+# --- Novel ---
+# These are populated during ideation, or pre-fill if you have an existing concept.
+novel:
+  title: ""
+  subtitle: ""
+  author: "Your Name"
+  genre:
+    primary: ""           # e.g. epic_fantasy, techno_thriller, sci_fi, horror, romance
+    subgenres: []
+  scope: "standalone"     # standalone | series
+  series:
+    name: ""
+    book_number: 1
+    total_books: 1
+  target:
+    word_count_min: 55000
+    word_count_max: 85000
+    chapter_count_min: 8
+    chapter_count_max: 12
+    words_per_chapter_min: 5500
+    words_per_chapter_max: 8800
+
+# --- Writing Engine ---
+writing:
+  style_profile: "echoes-of-the-abyss"   # The core writing DNA
+  sensory_targets:
+    visual: 0.40
+    kinesthetic: 0.25
+    olfactory: 0.20
+    auditory: 0.10
+    gustatory: 0.05
+  genre_overlay: "auto"   # auto | epic_fantasy | techno_thriller | sci_fi | etc.
+  pov: "third-person-limited"
+  tense: "past"
+  voice:
+    sentence_variation: "high"
+    raw_edges: true
+    poetic_unpredictability: true
+    cliche_policy: "subvert-or-avoid"
+
+# --- Review Engine ---
+review:
+  reviewer_count: 2
+  min_rating_proceed: 9.0       # >= this → chapter approved
+  min_rating_refine: 7.5        # >= this → surgical enhancement; below → rewrite
+  max_enhancement_loops: 3      # max Phase 1.X iterations
+  max_rewrite_attempts: 2       # max full rewrites per chapter
+  critic_weight: 0.6            # weight for literary critic score
+  reader_weight: 0.4            # weight for beta reader score
+  debate_critics:
+    - "pacing_critic"
+    - "character_critic"
+    - "prose_critic"
+    - "continuity_critic"
+  diminishing_returns_threshold: 0.2   # stop if < +0.2 improvement per phase
+
+# --- Publishing ---
+publishing:
+  formats:
+    - "kindle_epub"
+    - "kdp_paperback"
+  kindle:
+    cover_dimensions: "2560x1600"
+  paperback:
+    trim_size: "6x9"        # 5x8 | 5.25x8 | 5.5x8.5 | 6x9
+    paper_color: "cream"     # white | cream
+    font: "Palatino"
+    font_size: 11
+
+# --- LLM ---
+llm:
+  provider: "anthropic"                      # anthropic | openai-compatible
+  base_url: "https://api.anthropic.com/v1"
+  api_key_env: "ANTHROPIC_API_KEY"           # reads from this env var
+  api_key: ""                                # or hardcode here (not recommended)
+  models:
+    writer: "claude-sonnet-4-20250514"
+    reviewer_1: "claude-sonnet-4-20250514"
+    reviewer_2: "claude-sonnet-4-20250514"   # can use a different model for diversity
+    editor: "claude-sonnet-4-20250514"
+    ideation: "claude-sonnet-4-20250514"
+  temperature:
+    writer: 0.85              # higher = more creative
+    reviewer: 0.3             # lower = more analytical
+    editor: 0.1               # lowest = most precise
+    ideation: 0.95            # highest = maximum divergence
+  fallback_models:
+    - "gpt-4o"
+  max_tokens: 8192
+
+# --- Knowledge Base ---
+knowledge_base:
+  backend: "markdown"
+  root: "novel_kb/"
+  categories:
+    - world_codex
+    - characters
+    - approved_chapters
+    - chapter_summaries
+    - style_guide
+    - reviews
+    - lessons_learned
+
+# --- Self-Learning ---
+self_learning:
+  enabled: true
+  time_decay_days: 90
+  track:
+    - technique_effectiveness
+    - reviewer_patterns
+    - voice_drift
+    - pacing_calibration
+    - sensory_balance
+
+# --- Sentinel ---
+sentinel:
+  enabled: true
+  checks:
+    - character_name_consistency
+    - world_rule_adherence
+    - timeline_integrity
+    - magic_system_rules
+    - foreshadowing_tracking
+    - dead_end_detection
+    - voice_drift_detection
+    - cliche_detection
+    - sensory_distribution_audit
+
+# --- Inputs (optional — for existing materials) ---
+inputs:
+  world_codex: ""             # path to existing codex file
+  character_profiles: ""      # path to character files
+  series_outline: ""          # path to existing outline
+  cover_image: ""             # path to cover image (jpg/png)
+  existing_chapters: ""       # path to already-approved chapters
+  style_reference: ""         # path to example prose for style matching
+
+# --- Runtime ---
+runtime:
+  timezone: "UTC"
+  max_parallel_tasks: 1       # sequential for continuity (recommended)
+  approval_timeout_hours: 48
+  output_dir: "artifacts/"
+
+# --- OpenClaw Bridge ---
+openclaw_bridge:
+  use_cron: false
+  use_message: true           # progress notifications
+  use_memory: true            # cross-session knowledge persistence
+  use_sessions_spawn: false   # sequential writing preferred
+  use_web_fetch: true         # genre research
+  use_browser: false
