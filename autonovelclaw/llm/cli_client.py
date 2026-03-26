@@ -34,6 +34,13 @@ from autonovelclaw.llm.client import AgentRole, BaseLLMClient, LLMResponse
 logger = logging.getLogger(__name__)
 
 
+class UsageLimitError(Exception):
+    """Raised when Claude CLI reports a usage/rate limit."""
+    def __init__(self, message: str, wait_sec: int = 300):
+        super().__init__(message)
+        self.wait_sec = wait_sec
+
+
 def _find_claude_cli() -> str | None:
     """Find the claude CLI binary."""
     # Check PATH first
@@ -146,13 +153,31 @@ class ClaudeCLIClient(BaseLLMClient):
             )
 
             if result.returncode != 0:
-                error_msg = result.stderr.strip() or f"claude exited with code {result.returncode}"
+                error_msg = result.stderr.strip() or result.stdout.strip() or f"claude exited with code {result.returncode}"
+                combined_output = f"{result.stderr} {result.stdout}".lower()
+
+                # Detect usage limit / rate limit
+                if self._is_usage_limit(combined_output):
+                    wait_sec = self._parse_reset_time(combined_output)
+                    raise UsageLimitError(
+                        f"Usage limit reached. Reset in ~{wait_sec // 60} minutes.",
+                        wait_sec=wait_sec,
+                    )
+
                 raise RuntimeError(f"Claude CLI error: {error_msg}")
 
             response_text = result.stdout.strip()
 
             if not response_text:
                 raise RuntimeError("Claude CLI returned empty response")
+
+            # Check if the response itself contains a limit message
+            if self._is_usage_limit(response_text.lower()):
+                wait_sec = self._parse_reset_time(response_text.lower())
+                raise UsageLimitError(
+                    f"Usage limit reached mid-response. Reset in ~{wait_sec // 60} minutes.",
+                    wait_sec=wait_sec,
+                )
 
             # Estimate tokens (CLI doesn't report them)
             est_input = len(combined_prompt) // 4
@@ -199,6 +224,63 @@ class ClaudeCLIClient(BaseLLMClient):
         return "\n".join(parts)
 
     # ------------------------------------------------------------------
+    # Usage limit detection and auto-resume
+    # ------------------------------------------------------------------
+
+    def _is_usage_limit(self, text: str) -> bool:
+        """Detect if output indicates a usage or rate limit."""
+        limit_phrases = [
+            "usage limit",
+            "rate limit",
+            "limit reached",
+            "too many requests",
+            "capacity",
+            "try again later",
+            "reset in",
+            "reset at",
+            "quota exceeded",
+            "throttled",
+            "overloaded",
+        ]
+        return any(phrase in text for phrase in limit_phrases)
+
+    def _parse_reset_time(self, text: str) -> int:
+        """Parse the reset wait time from a limit message. Returns seconds."""
+        import re as _re
+
+        # "reset in X minutes"
+        m = _re.search(r"reset\s+in\s+(\d+)\s*min", text)
+        if m:
+            return int(m.group(1)) * 60
+
+        # "reset in X hours"
+        m = _re.search(r"reset\s+in\s+(\d+)\s*hour", text)
+        if m:
+            return int(m.group(1)) * 3600
+
+        # "reset at HH:MM" — estimate wait
+        m = _re.search(r"reset\s+at\s+(\d{1,2}):(\d{2})", text)
+        if m:
+            from datetime import datetime, timezone
+            now = datetime.now(timezone.utc)
+            reset_hour, reset_min = int(m.group(1)), int(m.group(2))
+            reset_time = now.replace(hour=reset_hour, minute=reset_min, second=0)
+            if reset_time <= now:
+                reset_time = reset_time.replace(day=now.day + 1)
+            wait = (reset_time - now).total_seconds()
+            return max(60, int(wait))  # at least 1 minute
+
+        # "try again in X seconds"
+        m = _re.search(r"try\s+again\s+in\s+(\d+)\s*sec", text)
+        if m:
+            return int(m.group(1))
+
+        # Default: 5 minutes for rate limits, 30 minutes for usage limits
+        if "usage limit" in text:
+            return 1800  # 30 min
+        return 300  # 5 min
+
+    # ------------------------------------------------------------------
     # Role mapping — simplified for CLI mode
     # ------------------------------------------------------------------
 
@@ -217,9 +299,11 @@ class ClaudeCLIClient(BaseLLMClient):
         """Check if CLI errors are worth retrying."""
         if isinstance(exc, subprocess.TimeoutExpired):
             return True
+        if isinstance(exc, UsageLimitError):
+            return True  # Always retry after waiting
         if isinstance(exc, RuntimeError):
             msg = str(exc).lower()
-            # Rate limit or overload
-            if any(kw in msg for kw in ["rate limit", "overloaded", "timeout", "503", "529"]):
+            if any(kw in msg for kw in ["rate limit", "overloaded", "timeout", "503", "529",
+                                         "usage limit", "try again"]):
                 return True
         return False

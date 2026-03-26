@@ -251,51 +251,107 @@ def _parse_storylines(text: str, expected: int) -> list[dict[str, str]]:
 
 
 def _execute_selection_and_scope(ctx: _Ctx) -> None:
-    """Stage 2: User selects a storyline and decides standalone vs series."""
+    """Stage 2: User selects a storyline and elaborates before automation.
+
+    This stage ALWAYS prompts the user — even in auto-approve mode.
+    This is the creative handshake: the user picks their preferred
+    storyline, can modify/elaborate on it, and then full automation
+    takes over from world-building onwards.
+    """
     storylines = ctx.ckpt.get_artifact("storylines_parsed", [])
 
-    if ctx.auto_approve:
-        selected = storylines[0] if storylines else {"title": "Untitled", "number": "1"}
-        scope = "standalone"
-        logger.info("Auto-selected storyline #1: %s (standalone)", selected.get("title"))
+    if not storylines:
+        raise RuntimeError("No storylines generated — check Stage 1 output")
+
+    from rich.console import Console
+    con = Console()
+
+    # --- Step 1: Present storylines for selection ---
+    con.print("\n[bold cyan]╔══════════════════════════════════════════╗[/]")
+    con.print("[bold cyan]║       CHOOSE YOUR STORYLINE              ║[/]")
+    con.print("[bold cyan]╚══════════════════════════════════════════╝[/]\n")
+
+    for sl in storylines:
+        con.print(f"  [bold yellow]{sl.get('number', '?')}.[/] [bold]{sl.get('title', 'Untitled')}[/]")
+        if sl.get("logline"):
+            con.print(f"     {sl['logline']}")
+        if sl.get("genre"):
+            con.print(f"     [dim]Genre: {sl['genre']}[/]")
+        con.print()
+
+    con.print(f"  [dim]Full details saved in: storylines.md[/]\n")
+
+    while True:
+        choice = input(f"  Which storyline? (1-{len(storylines)}): ").strip()
+        if choice.isdigit() and 1 <= int(choice) <= len(storylines):
+            selected = storylines[int(choice) - 1]
+            break
+        con.print("  [red]Enter a number from the list above.[/]")
+
+    con.print(f"\n  [green]Selected:[/] [bold]{selected.get('title', 'Untitled')}[/]\n")
+
+    # --- Step 2: Let user elaborate, modify, or add details ---
+    con.print("[bold cyan]═══ MAKE IT YOURS ═══[/]\n")
+    con.print("  Now's your chance to shape the story before automation takes over.")
+    con.print("  You can:")
+    con.print("    • Change character names, settings, or relationships")
+    con.print("    • Add plot elements, twists, or themes")
+    con.print("    • Specify the tone, target audience, or ending")
+    con.print("    • Request specific scenes or emotional beats")
+    con.print("    • Or just press Enter to proceed as-is\n")
+
+    elaboration = input("  Your additions/changes (or Enter to skip):\n  > ").strip()
+
+    if elaboration:
+        # Append user elaboration to the storyline
+        selected["user_elaboration"] = elaboration
+        original_text = selected.get("full_text", "")
+        selected["full_text"] = (
+            f"{original_text}\n\n"
+            f"## USER DIRECTION\n\n"
+            f"{elaboration}\n"
+        )
+        con.print(f"\n  [green]✓ Your direction has been added to the storyline.[/]")
+
+        # If elaboration is substantial, offer a second pass
+        if len(elaboration) > 50:
+            more = input("  Anything else? (or Enter to proceed): ").strip()
+            if more:
+                selected["user_elaboration"] += f"\n{more}"
+                selected["full_text"] += f"\n{more}\n"
+                con.print(f"  [green]✓ Added.[/]")
     else:
-        from rich.console import Console
-        con = Console()
-        con.print("\n[bold cyan]═══ STORYLINE SELECTION ═══[/]\n")
+        con.print(f"  [dim]Proceeding with storyline as generated.[/]")
 
-        for sl in storylines:
-            con.print(f"  [bold]{sl['number']}. {sl['title']}[/]")
-            if sl.get("logline"):
-                con.print(f"     [dim]{sl['logline']}[/]")
-            con.print()
+    # --- Step 3: Scope selection ---
+    con.print()
+    scope_choice = input("  Standalone novel or series? (standalone/series): ").strip().lower()
+    scope = "series" if "series" in scope_choice else "standalone"
 
-        con.print("[dim]Full details: storylines.md[/]\n")
+    if scope == "series":
+        book_count = input("  How many books? (2-12): ").strip()
+        book_count_int = int(book_count) if book_count.isdigit() and 2 <= int(book_count) <= 12 else 4
+        ctx.ckpt.store_artifact("series_book_count", book_count_int)
 
-        while True:
-            choice = input(f"Select a storyline (1-{len(storylines)}): ").strip()
-            if choice.isdigit() and 1 <= int(choice) <= len(storylines):
-                selected = storylines[int(choice) - 1]
-                break
-            con.print("[red]Invalid choice.[/]")
-
-        scope_choice = input("Standalone novel or series? (standalone/series): ").strip().lower()
-        scope = "series" if "series" in scope_choice else "standalone"
-
-        if scope == "series":
-            book_count = input("How many books? (2-12): ").strip()
-            book_count_int = int(book_count) if book_count.isdigit() and 2 <= int(book_count) <= 12 else 4
-            ctx.ckpt.store_artifact("series_book_count", book_count_int)
+    # --- Confirm and hand off to automation ---
+    con.print(f"\n[bold green]═══ AUTOMATION ENGAGED ═══[/]")
+    con.print(f"  Title: [bold]{selected.get('title', 'Untitled')}[/]")
+    con.print(f"  Scope: {scope}")
+    if elaboration:
+        con.print(f"  Your direction: [italic]{elaboration[:100]}{'...' if len(elaboration) > 100 else ''}[/]")
+    con.print(f"\n  [dim]From here, the pipeline runs autonomously.")
+    con.print(f"  You'll be notified at review stages and if anything goes wrong.[/]\n")
 
     ctx.ckpt.store_artifact("selected_storyline", selected)
     ctx.ckpt.store_artifact("novel_scope", scope)
 
-    # Update config with selected info
     if selected.get("title"):
         ctx.config.novel.title = selected["title"]
 
     _save_text(ctx.run_dir, "selected_storyline.md",
                selected.get("full_text", json.dumps(selected, indent=2)))
-    logger.info("Selected: %s (%s)", selected.get("title"), scope)
+    logger.info("Selected: %s (%s)%s", selected.get("title"), scope,
+                f" + user elaboration ({len(elaboration)} chars)" if elaboration else "")
 
 
 def _execute_series_arc_design(ctx: _Ctx) -> None:

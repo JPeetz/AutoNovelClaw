@@ -481,8 +481,9 @@ class PipelineRunner:
 
         max_retries = max_retries_for(stage)
         last_error = ""
+        attempt = 0
 
-        for attempt in range(max_retries + 1):
+        while attempt <= max_retries:
             try:
                 start = time.monotonic()
 
@@ -511,10 +512,11 @@ class PipelineRunner:
                 last_error = f"Timeout after {getattr(exc, 'timeout', '?')}s"
                 self.monitor.on_timeout(key, getattr(exc, 'timeout', 0),
                                         chapter=self.ckpt.current_chapter)
-                if attempt < max_retries:
-                    self.monitor.on_retry(key, attempt + 1, max_retries,
+                attempt += 1
+                if attempt <= max_retries:
+                    self.monitor.on_retry(key, attempt, max_retries,
                                           chapter=self.ckpt.current_chapter)
-                    con.print(f"[yellow]timeout → retry {attempt + 1}/{max_retries}[/]", end=" ")
+                    con.print(f"[yellow]timeout → retry {attempt}/{max_retries}[/]", end=" ")
                     continue
                 break
 
@@ -522,16 +524,46 @@ class PipelineRunner:
                 last_error = str(exc)
                 err_lower = last_error.lower()
 
-                # Detect rate limits
+                # --- Usage limit: auto-wait and resume (NO attempt increment) ---
+                from autonovelclaw.llm.cli_client import UsageLimitError
+                if isinstance(exc, UsageLimitError):
+                    wait_sec = exc.wait_sec
+                    wait_min = wait_sec // 60
+                    self.monitor.on_rate_limit(key, wait_sec=wait_sec,
+                                               chapter=self.ckpt.current_chapter)
+                    con.print(
+                        f"\n  [bold yellow]⏸ Usage limit reached — "
+                        f"auto-resuming in {wait_min} minutes[/]"
+                    )
+                    con.print(f"  [dim]Pipeline paused at {key}. "
+                              f"Checkpoint saved. Will retry automatically.[/]")
+                    self.ckpt.save()
+
+                    # Wait with countdown
+                    import time as _t
+                    remaining = wait_sec
+                    while remaining > 0:
+                        mins = remaining // 60
+                        secs = remaining % 60
+                        print(f"\r  ⏳ Resuming in {mins:02d}:{secs:02d}  ", end="", flush=True)
+                        _t.sleep(min(30, remaining))
+                        remaining -= 30
+                    print("\r  ▶ Resuming...                    ")
+
+                    # Don't increment attempt — retry indefinitely for usage limits
+                    continue
+
+                # --- Rate limit (non-usage): shorter wait ---
                 if any(kw in err_lower for kw in ["rate limit", "429", "too many requests"]):
                     self.monitor.on_rate_limit(key, wait_sec=30,
                                                chapter=self.ckpt.current_chapter)
 
-                if attempt < max_retries:
-                    self.monitor.on_retry(key, attempt + 1, max_retries,
+                attempt += 1
+                if attempt <= max_retries:
+                    self.monitor.on_retry(key, attempt, max_retries,
                                           chapter=self.ckpt.current_chapter)
-                    con.print(f"[yellow]retry {attempt + 1}/{max_retries}[/]", end=" ")
-                    logger.warning("Stage %s attempt %d failed: %s", key, attempt + 1, exc)
+                    con.print(f"[yellow]retry {attempt}/{max_retries}[/]", end=" ")
+                    logger.warning("Stage %s attempt %d failed: %s", key, attempt, exc)
 
                     # Back off on rate limits
                     if "rate limit" in err_lower or "429" in err_lower:
@@ -549,25 +581,66 @@ class PipelineRunner:
         return StageResult(stage, StageStatus.FAILED, error=last_error)
 
     def _execute_with_gate(self, stage: Stage, key: str, con: Any) -> StageResult:
-        """Execute a stage, then handle gate approval if needed."""
+        """Execute a stage. Gates auto-proceed after storyline selection.
+
+        The only interactive point is Stage 2 (SELECTION_AND_SCOPE) where
+        the user picks their storyline and elaborates. All other gates
+        auto-proceed. Review feedback is displayed for awareness but
+        doesn't block the pipeline.
+        """
         result = self._execute_stage(stage, key, con)
         if result.status != StageStatus.DONE:
             return result
 
-        if stage in GATE_STAGES and not self.auto_approve:
-            if self.config.mode != ProjectMode.FULL_AUTO:
-                con.print(f"\n  [bold yellow]⏸ GATE: {key}[/]")
-                con.print("  [yellow]Review artifacts. Type 'approve' or 'reject':[/]")
-                response = input("  > ").strip().lower()
-                if response == "reject":
-                    from autonovelclaw.pipeline.stages import GATE_ROLLBACK
-                    rollback = GATE_ROLLBACK.get(stage, stage)
-                    self.ckpt.set_stage_status(key, StageStatus.REJECTED)
-                    self.ckpt.record_decision(key, "rejected", f"User rejected → rollback to {stage_name(rollback)}")
-                    con.print(f"  [red]✗ Rejected → rolling back to {stage_name(rollback)}[/]")
-                    return StageResult(stage, StageStatus.FAILED, error="Gate rejected by user")
+        # Display review feedback (non-blocking, informational)
+        if stage == Stage.INDEPENDENT_REVIEW:
+            self._display_review_summary(con)
+        elif stage == Stage.RE_REVIEW:
+            self._display_review_summary(con, reviewer=2)
 
+        # All gates auto-proceed (user interaction was at storyline selection)
         return result
+
+    def _display_review_summary(self, con: Any, reviewer: int = 1) -> None:
+        """Display review feedback prominently but non-blocking."""
+        ch = self.ckpt.current_chapter
+        if reviewer == 1:
+            rating = self.ckpt.get_artifact(f"review_1_rating_ch{ch}", 0)
+            parsed = self.ckpt.get_artifact(f"review_1_parsed_ch{ch}", {})
+        else:
+            rating = self.ckpt.get_artifact(f"review_2_rating_ch{ch}", 0)
+            parsed = self.ckpt.get_artifact(f"review_2_parsed_ch{ch}", {})
+
+        if not rating:
+            return
+
+        reviewer_name = "Critic" if reviewer == 1 else "Reader"
+        colour = "green" if rating >= 9.0 else ("yellow" if rating >= 7.5 else "red")
+
+        con.print(f"\n    [bold {colour}]📖 {reviewer_name} Review — Ch{ch}: {rating}/10[/]")
+
+        # Show strengths
+        strengths = parsed.get("strengths", [])
+        if strengths:
+            con.print(f"    [green]✓ {strengths[0][:80]}[/]")
+            if len(strengths) > 1:
+                con.print(f"    [green]✓ {strengths[1][:80]}[/]")
+
+        # Show weaknesses
+        weaknesses = parsed.get("weaknesses", [])
+        if weaknesses:
+            con.print(f"    [yellow]△ {weaknesses[0][:80]}[/]")
+
+        # Show drag/confusion for reader
+        if reviewer == 2:
+            drags = parsed.get("drag_points", [])
+            if drags:
+                con.print(f"    [yellow]⏳ Drag: {drags[0][:60]}[/]")
+            confusion = parsed.get("confusion_points", [])
+            if confusion:
+                con.print(f"    [yellow]? Confusion: {confusion[0][:60]}[/]")
+
+        con.print()
 
     # ------------------------------------------------------------------
     # Helpers
