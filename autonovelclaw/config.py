@@ -162,8 +162,15 @@ class TemperatureConfig(BaseModel):
     ideation: float = 0.95
 
 
+class ClaudeCLIConfig(BaseModel):
+    """Configuration for the Claude CLI (subscription) provider."""
+    command: str = "claude"
+    model: str = "sonnet"   # "sonnet", "opus", "haiku"
+    timeout_sec: int = 300
+
+
 class LLMConfig(BaseModel):
-    provider: str = "anthropic"
+    provider: str = "claude-cli"  # "claude-cli" (subscription), "anthropic" (API), "openai-compatible"
     base_url: str = "https://api.anthropic.com/v1"
     api_key_env: str = "ANTHROPIC_API_KEY"
     api_key: str = ""
@@ -171,8 +178,12 @@ class LLMConfig(BaseModel):
     temperature: TemperatureConfig = Field(default_factory=TemperatureConfig)
     fallback_models: list[str] = Field(default_factory=lambda: ["gpt-4o"])
     max_tokens: int = 8192
+    claude_cli: ClaudeCLIConfig = Field(default_factory=ClaudeCLIConfig)
 
     def resolve_api_key(self) -> str:
+        """Resolve API key. Not required for claude-cli provider."""
+        if self.provider.lower().replace("-", "_") in ("claude_cli", "cli", "claude_code", "subscription"):
+            return ""  # CLI uses subscription, no key needed
         if self.api_key:
             return self.api_key
         key = os.environ.get(self.api_key_env, "")

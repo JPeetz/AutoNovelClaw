@@ -46,26 +46,31 @@ def create_llm_client(config: LLMConfig) -> BaseLLMClient:
     Returns
     -------
     BaseLLMClient
-        A ready-to-use client (Anthropic or OpenAI-compatible).
+        A ready-to-use client (Anthropic, OpenAI-compatible, or Claude CLI).
 
     Raises
     ------
     ValueError
         If the provider is not recognised.
     """
-    provider = config.provider.lower().strip()
+    provider = config.provider.lower().strip().replace("-", "_").replace(" ", "_")
 
     if provider == "anthropic":
         from autonovelclaw.llm.anthropic import AnthropicClient
-        logger.info("Using Anthropic provider: %s", config.base_url)
+        logger.info("Using Anthropic API provider: %s", config.base_url)
         return AnthropicClient(config)
 
-    if provider in ("openai-compatible", "openai", "openai_compatible"):
+    if provider in ("openai_compatible", "openai"):
         from autonovelclaw.llm.openai_compat import OpenAICompatClient
         logger.info("Using OpenAI-compatible provider: %s", config.base_url)
         return OpenAICompatClient(config)
 
+    if provider in ("claude_cli", "cli", "claude_code", "subscription"):
+        from autonovelclaw.llm.cli_client import ClaudeCLIClient
+        logger.info("Using Claude CLI provider (subscription mode — no API key needed)")
+        return ClaudeCLIClient(config)
+
     raise ValueError(
         f"Unknown LLM provider: '{provider}'. "
-        f"Supported: 'anthropic', 'openai-compatible'"
+        f"Supported: 'anthropic', 'openai-compatible', 'claude-cli'"
     )

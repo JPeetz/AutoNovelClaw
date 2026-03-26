@@ -113,7 +113,22 @@ def check_python_version() -> CheckResult:
 
 
 def check_api_key(config: Any) -> CheckResult:
-    """Check that the LLM API key resolves."""
+    """Check that the LLM API key resolves (or CLI is available)."""
+    provider = config.llm.provider.lower().replace("-", "_")
+
+    # Claude CLI uses subscription — check for binary instead of key
+    if provider in ("claude_cli", "cli", "claude_code", "subscription"):
+        import shutil as _shutil
+        cli_cmd = config.llm.claude_cli.command if hasattr(config.llm, "claude_cli") else "claude"
+        if _shutil.which(cli_cmd):
+            return CheckResult("api_key", "pass",
+                               f"Claude CLI found: {_shutil.which(cli_cmd)} (subscription mode)")
+        return CheckResult(
+            "api_key", "fail",
+            f"Claude CLI not found: '{cli_cmd}'",
+            fix="Install Claude Code CLI: https://docs.anthropic.com/en/docs/claude-code",
+        )
+
     try:
         key = config.llm.resolve_api_key()
         if not key:
@@ -130,6 +145,10 @@ def check_api_key(config: Any) -> CheckResult:
 
 def check_api_connectivity(config: Any) -> CheckResult:
     """Check basic network connectivity to the LLM API endpoint."""
+    provider = config.llm.provider.lower().replace("-", "_")
+    if provider in ("claude_cli", "cli", "claude_code", "subscription"):
+        return CheckResult("api_connectivity", "pass", "CLI mode — no API endpoint to check")
+
     import urllib.parse
     base_url = config.llm.base_url
     parsed = urllib.parse.urlparse(base_url)

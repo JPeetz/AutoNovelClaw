@@ -7,9 +7,14 @@ Autonomous novel-writing pipeline. Takes a story idea, generates a complete nove
 ```bash
 python3 -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
-export ANTHROPIC_API_KEY="sk-ant-..."
+
+# Default: uses your Claude subscription via Claude Code CLI (no API key needed)
 novelclaw doctor           # pre-flight checks
 novelclaw run --topic "A lighthouse keeper discovers messages from the future" --auto-approve --verbose
+
+# Alternative: use Anthropic API directly (billed per token)
+# export ANTHROPIC_API_KEY="sk-ant-..."
+# Edit config.novelclaw.yaml → llm.provider: "anthropic"
 ```
 
 ## Project Layout

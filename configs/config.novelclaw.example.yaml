@@ -90,7 +90,20 @@ publishing:
 
 # --- LLM ---
 llm:
-  provider: "anthropic"                      # anthropic | openai-compatible
+  # --- Provider: choose one ---
+  # "claude-cli"        — Uses your Claude subscription (Pro/Max/Team) via Claude Code CLI
+  #                       No API key needed. Just have `claude` installed and authenticated.
+  # "anthropic"         — Direct Anthropic API (requires API key, billed per token)
+  # "openai-compatible" — Any OpenAI-compatible endpoint (GPT, Ollama, Together, Groq)
+  provider: "claude-cli"
+
+  # --- Claude CLI settings (only used when provider is "claude-cli") ---
+  claude_cli:
+    command: "claude"          # path to claude binary
+    model: "sonnet"            # "sonnet", "opus", or "haiku"
+    timeout_sec: 300           # per-call timeout in seconds
+
+  # --- API settings (only used when provider is "anthropic" or "openai-compatible") ---
   base_url: "https://api.anthropic.com/v1"
   api_key_env: "ANTHROPIC_API_KEY"           # reads from this env var
   api_key: ""                                # or hardcode here (not recommended)
