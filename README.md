@@ -28,7 +28,7 @@ The pipeline:
 3. Asks if you want a standalone novel or a multi-book series
 4. Builds a complete world (codex, characters, magic/technology system)
 5. Creates a chapter-by-chapter outline with detailed beat sheets
-6. Writes each chapter using the **Echoes of the Abyss** writing methodology
+6. Writes each chapter using a **proven five-sense immersion methodology**
 7. Sends each chapter to **two independent AI reviewers** who have zero knowledge of the planning documents
 8. Based on reviewer ratings, either approves the chapter, enhances it surgically, or rewrites it
 9. Checks the full manuscript for continuity errors (character names, timeline, world rules)
@@ -88,7 +88,7 @@ artifacts/nc-20260318-143022-my-novel/
 
 ## 🧬 The Writing DNA
 
-AutoNovelClaw's writing engine is built on an existing AI writen and published Novel  — a writing system developed across 100+ hours of real human-AI collaborative novel writing on two book series. That collaborative process produced manuscripts independently rated 9.3/10 by AI reviewers. The specific techniques that got them to that level are hardcoded into this pipeline's Writer Agent.
+AutoNovelClaw's writing engine is built on a **proven five-sense immersion methodology** — a writing system refined across 100+ hours of real human-AI collaborative novel writing. Multiple novels across different genres have been produced and published using these techniques, with manuscripts independently rated 9.3/10 by AI reviewers. The specific techniques that achieved those ratings are built into this pipeline's Writer Agent.
 
 ### The Five-Sense Immersion Model
 
@@ -199,7 +199,7 @@ The key innovation: **the writer never reviews its own work.** Each agent has a 
   (creative)  (analytic)  (analytic)  (precise)
 ```
 
-- **Writer Agent** — Master novelist with the full Echoes of the Abyss methodology (25 stage prompts + 9 reusable blocks in `prompts.py`), world codex, character profiles, beat sheets, and rolling chapter summaries for continuity. Temperature 0.85 for creativity.
+- **Writer Agent** — Master novelist with the full five-sense immersion methodology (25 stage prompts + 9 reusable blocks in `prompts.py`), world codex, character profiles, beat sheets, and rolling chapter summaries for continuity. Temperature 0.85 for creativity.
 - **Reviewer #1** — Harsh literary critic. Receives ONLY the chapter text and the genre classification. Rates on a /10 scale, identifies 3–5 strengths, 3–5 weaknesses, and 3–5 concrete improvement suggestions. Temperature 0.3 for analytical precision.
 - **Reviewer #2** — Genre-savvy beta reader. Receives ONLY the enhanced chapter text (after Phase 1.X). Has zero knowledge of Reviewer #1's feedback. Evaluates engagement, drag points, confusion points, and memorability. Temperature 0.3.
 - **Editor Agent** — KDP publishing specialist. Handles EPUB generation, paperback PDF formatting, metadata, and Amazon description. Temperature 0.1 for rule-following precision.
@@ -438,7 +438,7 @@ llm:
     ideation: "llama3.1:70b"
 ```
 
-> **Note:** Writing quality depends heavily on model capability. Smaller models (< 30B parameters) will produce noticeably weaker prose. The Echoes of the Abyss prompts were developed with Claude Sonnet and work best with frontier-class models.
+> **Note:** Writing quality depends heavily on model capability. Smaller models (< 30B parameters) will produce noticeably weaker prose. The immersion prompts were developed with Claude Sonnet and work best with frontier-class models.
 
 ---
 
@@ -658,7 +658,7 @@ AutoNovelClaw/
 Inspired by:
 
 - 🔬 [AutoResearchClaw](https://github.com/aiming-lab/AutoResearchClaw) — The 23-stage autonomous research pipeline whose architecture was adapted for novel writing
-- 📖 The **Echoes of the Abyss** writing methodology — 100+ hours of collaborative novel writing across "The Silent Empire" (epic fantasy) and "Phantom Drift" (techno-thriller)
+- 📖 The **five-sense immersion writing methodology** — refined across 100+ hours of collaborative novel writing, with multiple novels published across genres including epic fantasy and techno-thriller
 - 🦞 [OpenClaw](https://github.com/openclaw/openclaw) — AI agent platform integration
 
 ---

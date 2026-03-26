@@ -166,7 +166,7 @@ class ClaudeCLIConfig(BaseModel):
     """Configuration for the Claude CLI (subscription) provider."""
     command: str = "claude"
     model: str = "sonnet"   # "sonnet", "opus", "haiku"
-    timeout_sec: int = 300
+    timeout_sec: int = 600  # 10 min default — large stages need time
 
 
 class LLMConfig(BaseModel):

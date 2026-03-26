@@ -268,6 +268,14 @@ class PipelineRunner:
             custom_file=getattr(config, "prompts_custom_file", None),
         )
 
+        # Pipeline monitor
+        from autonovelclaw.monitor import PipelineMonitor
+        self.monitor = PipelineMonitor(
+            self.run_dir,
+            notify_on_fail=True,
+            notify_webhook=getattr(config.runtime, "notify_webhook", ""),
+        )
+
         # Store topic
         if topic:
             self.ckpt.store_artifact("raw_topic", topic)
@@ -286,6 +294,7 @@ class PipelineRunner:
         con.print("[bold cyan]╚══════════════════════════════════════════╝[/]\n")
         con.print(f"  Run directory: [dim]{self.run_dir}[/]\n")
 
+        self.monitor.on_pipeline_start(self.ckpt.run_id)
         results: list[StageResult] = []
 
         # --- Pre-chapter stages ---
@@ -305,6 +314,7 @@ class PipelineRunner:
             results.append(result)
             if result.status == StageStatus.FAILED and stage not in NONCRITICAL_STAGES:
                 con.print(f"\n[bold red]Pipeline halted at {key}: {result.error}[/]")
+                self.monitor.on_pipeline_fail(f"Halted at {key}: {result.error}")
                 return self.run_dir / "deliverables"
 
         # --- Chapter loop ---
@@ -326,6 +336,7 @@ class PipelineRunner:
             ch_result = self._run_chapter(ch_num, con)
             if ch_result and ch_result.status == StageStatus.FAILED:
                 con.print(f"\n[bold red]Pipeline halted at chapter {ch_num}[/]")
+                self.monitor.on_pipeline_fail(f"Halted at chapter {ch_num}")
                 return self.run_dir / "deliverables"
 
         # --- Post-chapter stages ---
@@ -344,6 +355,16 @@ class PipelineRunner:
 
         tokens = self.llm.total_tokens
         con.print(f"[dim]Tokens: {tokens['total']:,} (in: {tokens['input']:,}, out: {tokens['output']:,})[/]\n")
+
+        self.monitor.on_token_update(tokens)
+        self.monitor.on_pipeline_complete()
+
+        # Check for health warnings
+        warnings = self.monitor.check_health_warnings()
+        if warnings:
+            con.print("[yellow]Health warnings:[/]")
+            for w in warnings:
+                con.print(f"  ⚠️  {w}")
 
         self._write_summary(results)
         self.llm.close()
@@ -438,6 +459,11 @@ class PipelineRunner:
 
         self.ckpt.last_approved_chapter = ch_num
         self.ckpt.save()
+
+        # Notify monitor
+        rating = float(self.ckpt.get_artifact(f"review_1_rating_ch{ch_num}", 0))
+        self.monitor.on_chapter_complete(ch_num, rating=rating)
+
         return None
 
     # ------------------------------------------------------------------
@@ -445,11 +471,13 @@ class PipelineRunner:
     # ------------------------------------------------------------------
 
     def _execute_stage(self, stage: Stage, key: str, con: Any) -> StageResult:
-        """Execute a single stage with retry logic."""
+        """Execute a single stage with retry logic and monitor hooks."""
         import time
+        import subprocess
 
         con.print(f"  ▶ {key}...", end=" ")
         self.ckpt.set_stage_status(key, StageStatus.RUNNING)
+        self.monitor.on_stage_start(key, chapter=self.ckpt.current_chapter)
 
         max_retries = max_retries_for(stage)
         last_error = ""
@@ -473,18 +501,49 @@ class PipelineRunner:
 
                 duration = time.monotonic() - start
                 self.ckpt.set_stage_status(key, StageStatus.DONE)
+                self.monitor.on_stage_complete(key, duration=duration,
+                                               chapter=self.ckpt.current_chapter)
+                self.monitor.on_token_update(self.llm.total_tokens)
                 con.print(f"[green]✓[/] [dim]({duration:.1f}s)[/]")
                 return StageResult(stage, StageStatus.DONE, duration_sec=duration)
 
+            except subprocess.TimeoutExpired as exc:
+                last_error = f"Timeout after {getattr(exc, 'timeout', '?')}s"
+                self.monitor.on_timeout(key, getattr(exc, 'timeout', 0),
+                                        chapter=self.ckpt.current_chapter)
+                if attempt < max_retries:
+                    self.monitor.on_retry(key, attempt + 1, max_retries,
+                                          chapter=self.ckpt.current_chapter)
+                    con.print(f"[yellow]timeout → retry {attempt + 1}/{max_retries}[/]", end=" ")
+                    continue
+                break
+
             except Exception as exc:
                 last_error = str(exc)
+                err_lower = last_error.lower()
+
+                # Detect rate limits
+                if any(kw in err_lower for kw in ["rate limit", "429", "too many requests"]):
+                    self.monitor.on_rate_limit(key, wait_sec=30,
+                                               chapter=self.ckpt.current_chapter)
+
                 if attempt < max_retries:
+                    self.monitor.on_retry(key, attempt + 1, max_retries,
+                                          chapter=self.ckpt.current_chapter)
                     con.print(f"[yellow]retry {attempt + 1}/{max_retries}[/]", end=" ")
                     logger.warning("Stage %s attempt %d failed: %s", key, attempt + 1, exc)
+
+                    # Back off on rate limits
+                    if "rate limit" in err_lower or "429" in err_lower:
+                        import time as _t
+                        _t.sleep(30)
+
                     continue
                 break
 
         self.ckpt.set_stage_status(key, StageStatus.FAILED)
+        self.monitor.on_stage_fail(key, error=last_error,
+                                   chapter=self.ckpt.current_chapter)
         con.print(f"[red]✗ {last_error[:80]}[/]")
         logger.error("Stage %s failed after %d attempts: %s", key, max_retries + 1, last_error)
         return StageResult(stage, StageStatus.FAILED, error=last_error)

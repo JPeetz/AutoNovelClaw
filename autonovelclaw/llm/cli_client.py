@@ -73,9 +73,11 @@ class ClaudeCLIClient(BaseLLMClient):
         else:
             self._claude_bin = _find_claude_cli() or "claude"
 
-        self._timeout = 300
+        # Default timeout: 600s (10 min) — large stages like storyline
+        # generation and codex can take 5-15 minutes via subscription
+        self._base_timeout = 600
         if cli_config and hasattr(cli_config, "timeout_sec"):
-            self._timeout = cli_config.timeout_sec
+            self._base_timeout = cli_config.timeout_sec
 
         self._model_hint = "sonnet"
         if cli_config and hasattr(cli_config, "model"):
@@ -125,13 +127,21 @@ class ClaudeCLIClient(BaseLLMClient):
             if self._model_hint:
                 cmd.extend(["--model", self._model_hint])
 
+            # Scale timeout based on expected output size
+            # Large outputs (8192 tokens) get full timeout; small outputs get less
+            timeout = self._base_timeout
+            if max_tokens >= 8000:
+                timeout = max(timeout, 900)  # 15 min for chapter-length outputs
+            elif max_tokens >= 4000:
+                timeout = max(timeout, 600)  # 10 min for medium outputs
+
             # Pipe the prompt via stdin
             result = subprocess.run(
                 cmd,
                 input=combined_prompt,
                 capture_output=True,
                 text=True,
-                timeout=self._timeout,
+                timeout=timeout,
                 env={**os.environ, "CLAUDE_NO_TELEMETRY": "1"},
             )
 

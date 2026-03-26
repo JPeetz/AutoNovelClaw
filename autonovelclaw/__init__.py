@@ -3,7 +3,7 @@ AutoNovelClaw — From Idea to Published Novel, Fully Autonomous.
 
 Tell me your idea. Pick a storyline. I'll write, review, enhance, and publish it.
 
-Built on the Echoes of the Abyss writing methodology — 100+ hours of proven
+Built on a proven five-sense immersion writing methodology — 100+ hours of
 human-AI collaborative novel writing distilled into an autonomous pipeline.
 """
 

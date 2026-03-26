@@ -38,7 +38,7 @@ novelclaw run --topic "A lighthouse keeper discovers messages from the future" -
 - 4 gate stages require human approval (or --auto-approve)
 - Enhancement decision: ≥9.0 PROCEED, 7.5-8.9 REFINE (max 3 loops), <7.5 REWRITE (max 2)
 - Two independent reviewers: Critic (literary, temp 0.3) and Reader (engagement, temp 0.3)
-- Writer agent (temp 0.85) with full Echoes of the Abyss writing methodology
+- Writer agent (temp 0.85) with full five-sense immersion writing methodology
 
 ## Current Status
 Steps 1-3 of 8 complete (unified LLM, wired all subsystems, deleted old code).

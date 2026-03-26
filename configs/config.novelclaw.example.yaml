@@ -101,7 +101,7 @@ llm:
   claude_cli:
     command: "claude"          # path to claude binary
     model: "sonnet"            # "sonnet", "opus", or "haiku"
-    timeout_sec: 300           # per-call timeout in seconds
+    timeout_sec: 600           # per-call timeout (large stages auto-scale to 15min)
 
   # --- API settings (only used when provider is "anthropic" or "openai-compatible") ---
   base_url: "https://api.anthropic.com/v1"
