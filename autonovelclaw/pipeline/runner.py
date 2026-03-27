@@ -276,6 +276,11 @@ class PipelineRunner:
             notify_webhook=getattr(config.runtime, "notify_webhook", ""),
         )
 
+        # Evolution system (self-learning across chapters and runs)
+        from autonovelclaw.evolution import EvolutionStore
+        self.evo_store = EvolutionStore(self.run_dir / "evolution")
+        self._load_cross_run_lessons()
+
         # Store topic
         if topic:
             self.ckpt.store_artifact("raw_topic", topic)
@@ -358,6 +363,9 @@ class PipelineRunner:
 
         self.monitor.on_token_update(tokens)
         self.monitor.on_pipeline_complete()
+
+        # --- Evolution: end-of-run lesson extraction ---
+        self._evolve_end_of_run()
 
         # Check for health warnings
         warnings = self.monitor.check_health_warnings()
@@ -463,6 +471,9 @@ class PipelineRunner:
         # Notify monitor
         rating = float(self.ckpt.get_artifact(f"review_1_rating_ch{ch_num}", 0))
         self.monitor.on_chapter_complete(ch_num, rating=rating)
+
+        # --- Evolution: extract lessons from this chapter's decisions ---
+        self._evolve_from_chapter(ch_num)
 
         return None
 
@@ -641,6 +652,117 @@ class PipelineRunner:
                 con.print(f"    [yellow]? Confusion: {confusion[0][:60]}[/]")
 
         con.print()
+
+    # ------------------------------------------------------------------
+    # Evolution system (self-learning)
+    # ------------------------------------------------------------------
+
+    def _load_cross_run_lessons(self) -> None:
+        """Load lessons from prior runs for cross-run learning.
+
+        Checks for a shared evolution store at the config's output directory
+        level (not per-run), and copies relevant lessons into this run's store.
+        """
+        from autonovelclaw.evolution import EvolutionStore
+
+        shared_dir = Path(self.config.runtime.output_dir) / "evolution_shared"
+        if not shared_dir.exists():
+            return
+
+        shared_store = EvolutionStore(shared_dir)
+        prior_count = shared_store.count()
+        if prior_count == 0:
+            return
+
+        # Copy relevant lessons into this run's store
+        all_prior = shared_store.load_all()
+        if all_prior:
+            self.evo_store.append_many(all_prior)
+            logger.info(
+                "Loaded %d lessons from prior runs into evolution store",
+                len(all_prior),
+            )
+
+    def _evolve_from_chapter(self, ch_num: int) -> None:
+        """Extract lessons from a completed chapter's decisions and reviews."""
+        from autonovelclaw.evolution import (
+            extract_lessons_from_decisions,
+            extract_lessons_from_reviews,
+        )
+
+        # Lessons from decisions (REFINE, REWRITE, HUMAN_ESCALATION)
+        ch_decisions = [
+            d for d in self.ckpt.decisions
+            if d.get("chapter") == ch_num
+        ]
+        if ch_decisions:
+            lessons = extract_lessons_from_decisions(
+                ch_decisions, run_id=self.ckpt.run_id,
+            )
+            if lessons:
+                self.evo_store.append_many(lessons)
+                logger.info("Chapter %d: extracted %d decision lessons", ch_num, len(lessons))
+
+        # Lessons from reviewer feedback patterns
+        review_text = self.ckpt.get_artifact(f"review_1_ch{ch_num}", "")
+        rating = float(self.ckpt.get_artifact(f"review_1_rating_ch{ch_num}", 0))
+        if review_text and rating > 0:
+            review_lessons = extract_lessons_from_reviews(
+                review_text, ch_num, rating, reviewer_id=1,
+                run_id=self.ckpt.run_id,
+            )
+            if review_lessons:
+                self.evo_store.append_many(review_lessons)
+
+    def _evolve_end_of_run(self) -> None:
+        """End-of-run evolution: persist lessons to shared store and write report.
+
+        Copies this run's lessons to the shared cross-run store so future
+        runs benefit from what this run learned. Writes a human-readable
+        evolution summary report.
+        """
+        from autonovelclaw.evolution import EvolutionStore, extract_lessons_from_decisions
+
+        # Extract any remaining unprocessed decisions
+        all_decisions = self.ckpt.decisions
+        if all_decisions:
+            remaining = extract_lessons_from_decisions(
+                all_decisions, run_id=self.ckpt.run_id,
+            )
+            if remaining:
+                self.evo_store.append_many(remaining)
+
+        total_lessons = self.evo_store.count()
+        if total_lessons == 0:
+            return
+
+        # Write evolution summary report
+        report = self.evo_store.build_summary_report()
+        (self.run_dir / "evolution" / "evolution_report.md").write_text(
+            report, encoding="utf-8",
+        )
+
+        # Persist to shared cross-run store
+        shared_dir = Path(self.config.runtime.output_dir) / "evolution_shared"
+        shared_dir.mkdir(parents=True, exist_ok=True)
+        shared_store = EvolutionStore(shared_dir)
+
+        this_run_lessons = self.evo_store.load_all()
+        if this_run_lessons:
+            shared_store.append_many(this_run_lessons)
+
+        # Log effectiveness summary
+        effective = self.evo_store.query_enhancement_effectiveness()
+        if effective:
+            avg = sum(e["improvement"] for e in effective) / len(effective)
+            logger.info(
+                "Evolution: %d lessons stored. Enhancement avg improvement: %+.2f. "
+                "Best: %+.1f (Ch%d). Persisted to shared store.",
+                total_lessons, avg, effective[0]["improvement"],
+                effective[0]["chapter"],
+            )
+        else:
+            logger.info("Evolution: %d lessons stored. Persisted to shared store.", total_lessons)
 
     # ------------------------------------------------------------------
     # Helpers
